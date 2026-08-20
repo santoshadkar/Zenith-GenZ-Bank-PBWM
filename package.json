@@ -1,0 +1,23 @@
+{
+  "name": "zenith-aura-genz-bank-pbwm",
+  "version": "1.0.0",
+  "description": "Zenith Aura - Next-Gen GenZ Private Banking & Wealth Management Suite",
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "start:server": "cd server && npm start",
+    "start:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build"
+  },
+  "keywords": [
+    "private-banking",
+    "wealth-management",
+    "genz",
+    "react",
+    "express",
+    "sqlite",
+    "mfa",
+    "trading"
+  ],
+  "author": "Santosh Adkar",
+  "license": "MIT"
+}
