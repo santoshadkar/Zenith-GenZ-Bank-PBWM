@@ -2,7 +2,11 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const bcrypt = require('bcryptjs');
 
-const dbPath = path.resolve(__dirname, 'aura_wealth.db');
+// Support Vercel serverless writeable /tmp path
+const dbPath = process.env.VERCEL || process.env.NODE_ENV === 'production'
+  ? '/tmp/aura_wealth.db' 
+  : path.resolve(__dirname, 'aura_wealth.db');
+
 const db = new sqlite3.Database(dbPath);
 
 // Helper function to calculate age from DOB string (YYYY-MM-DD)
@@ -43,7 +47,7 @@ const allQuery = (sql, params = []) => {
 
 async function initDB() {
   db.serialize(async () => {
-    console.log('[DB] Initializing SQLite tables...');
+    console.log('[DB] Initializing SQLite tables at:', dbPath);
 
     // 1. Users Table
     await runQuery(`
@@ -70,7 +74,7 @@ async function initDB() {
 
     await runQuery(`UPDATE users SET account_number = 'ZA-8849-2091' WHERE account_number IS NULL OR account_number = ''`);
 
-    // 2. Accounts Table (Currency DEFAULT 'INR')
+    // 2. Accounts Table
     await runQuery(`
       CREATE TABLE IF NOT EXISTS accounts (
         id TEXT PRIMARY KEY,
@@ -84,8 +88,9 @@ async function initDB() {
       )
     `);
 
-    // Update existing database currency to INR
-    await runQuery(`UPDATE accounts SET currency = 'INR' WHERE currency = 'USD'`);
+    try {
+      await runQuery(`UPDATE accounts SET currency = 'INR' WHERE currency = 'USD'`);
+    } catch (e) {}
 
     // 3. GenZ Individual Savings Plans (ISP) & Vaults
     await runQuery(`
@@ -153,26 +158,9 @@ async function initDB() {
       )
     `);
 
-    // Reset default seed data in INR amounts if old USD values exist
-    const demoUser = await getQuery(`SELECT * FROM users WHERE email = ?`, ['genz.investor@zenithaura.com']);
-    if (demoUser) {
-      // Update balances to realistic INR amounts
-      await runQuery(`UPDATE accounts SET balance = 245000.00 WHERE id = 'acc_cash_01'`);
-      await runQuery(`UPDATE accounts SET balance = 1825000.00 WHERE id = 'acc_wealth_02'`);
-      await runQuery(`UPDATE accounts SET balance = 348000.00 WHERE id = 'acc_isp_03'`);
-
-      // Update savings plans target & current in INR
-      await runQuery(`UPDATE savings_plans SET target_amount = 500000.00, current_amount = 224000.00 WHERE id = 'sp_01'`);
-      await runQuery(`UPDATE savings_plans SET target_amount = 150000.00, current_amount = 89000.00 WHERE id = 'sp_02'`);
-      await runQuery(`UPDATE savings_plans SET target_amount = 100000.00, current_amount = 35000.00 WHERE id = 'sp_03'`);
-
-      // Update portfolios in INR
-      await runQuery(`UPDATE portfolios SET avg_buy_price = 9200.00, current_price = 11200.00 WHERE symbol = 'NVDA'`);
-      await runQuery(`UPDATE portfolios SET avg_buy_price = 14500.00, current_price = 18700.00 WHERE symbol = 'AAPL'`);
-      await runQuery(`UPDATE portfolios SET avg_buy_price = 4000000.00, current_price = 5350000.00 WHERE symbol = 'BTC'`);
-      await runQuery(`UPDATE portfolios SET avg_buy_price = 200000.00, current_price = 287500.00 WHERE symbol = 'ETH'`);
-      await runQuery(`UPDATE portfolios SET avg_buy_price = 34000.00, current_price = 42700.00 WHERE symbol = 'VOO'`);
-    } else {
+    // Seed Default Demo User if empty
+    const existingUser = await getQuery(`SELECT * FROM users WHERE email = ?`, ['genz.investor@zenithaura.com']);
+    if (!existingUser) {
       console.log('[DB] Seeding default Zenith Aura demo user in INR...');
       const userId = 'usr_genz_001';
       const accountNumber = 'ZA-8849-2091';
@@ -220,6 +208,8 @@ async function initDB() {
         ('tx_04', ?, 'acc_cash_01', 'Transfer', 25000.00, 'UPI Peer-to-Peer Transfer to @sam_tech', 'Transfer', 1),
         ('tx_05', ?, 'acc_isp_03', 'Interest', 2480.00, 'Monthly 6.75% APY Yield Payout', 'Yield', 0)
       `, [userId, userId, userId, userId, userId]);
+
+      console.log('[DB] Seeding complete! Demo login: Account Number: ZA-8849-2091 or genz.investor@zenithaura.com / Password: Zenith2026!');
     }
   });
 }
