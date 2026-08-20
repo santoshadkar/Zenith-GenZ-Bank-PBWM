@@ -158,7 +158,7 @@ app.post('/api/auth/register', async (req, res) => {
     const accountNumber = `ZA-${randPart1}-${randPart2}`;
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const fundAmount = parseFloat(initialDeposit || 100000.00); // Default ₹1,00,000
+    const fundAmount = parseFloat(initialDeposit || 100000.00);
 
     await runQuery(`
       INSERT INTO users (id, account_number, name, email, password_hash, dob, age, is_minor, kyc_status, mfa_enabled, mfa_secret)
@@ -178,7 +178,6 @@ app.post('/api/auth/register', async (req, res) => {
       VALUES (?, ?, 'GenZ Starter Wealth Vault', ?, ?, 6.75, 'Goal Stash')
     `, [ispVaultId, userId, fundAmount * 2, ispVaultAmount]);
 
-    // Fixed SQL parameter alignment
     await runQuery(`
       INSERT INTO transactions (id, user_id, account_id, type, amount, description, category, step_up_mfa_verified)
       VALUES (?, ?, ?, 'Deposit', ?, ?, 'Funding Deposit', ?)
@@ -328,7 +327,6 @@ app.post('/api/banking/transfer', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: 'Transfer amount must be greater than ₹0' });
     }
 
-    // Step-Up MFA for Transfers >= ₹50,000
     if (amount >= 50000) {
       if (!mfaCode) {
         return res.status(422).json({ 
@@ -492,7 +490,6 @@ app.post('/api/trading/execute', authenticateToken, async (req, res) => {
 
     const totalAmount = parseFloat(shares) * parseFloat(price);
 
-    // Step-Up MFA for Trades >= ₹1,00,000
     if (totalAmount >= 100000) {
       if (!mfaCode) {
         return res.status(422).json({
@@ -562,10 +559,14 @@ app.post('/api/trading/execute', authenticateToken, async (req, res) => {
   }
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`==================================================`);
-  console.log(` Zenith Aura Private Banking & Wealth API Server (INR)`);
-  console.log(` Running at http://localhost:${PORT}`);
-  console.log(`==================================================`);
-});
+// Start Server locally if not running on Vercel
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`==================================================`);
+    console.log(` Zenith Aura Private Banking & Wealth API Server (INR)`);
+    console.log(` Running at http://localhost:${PORT}`);
+    console.log(`==================================================`);
+  });
+}
+
+module.exports = app;
